@@ -125,13 +125,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-classes
-          path: .
+          path: back/build/classes
 
       - name: Download frontend coverage
         uses: actions/download-artifact@v4
         with:
           name: frontend-coverage
-          path: .
+          path: front/coverage/microcrm
 
       - name: Run Sonar scan
         uses: SonarSource/sonarqube-scan-action@v6
