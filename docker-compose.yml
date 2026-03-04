@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: back
+    image: orion-microcrm-back:local
+    ports:
+      - "8080:8080"
+    networks:
+      - microcrm
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: front
+    image: orion-microcrm-front:local
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - microcrm
+
+networks:
+  microcrm:
+    driver: bridge
