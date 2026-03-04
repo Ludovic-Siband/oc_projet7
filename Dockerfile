@@ -1,47 +1,51 @@
-FROM node as front-build
-
-COPY ./front /src
-
-WORKDIR /src
-
-RUN npm ci \
-    && npx @angular/cli build --optimization
-
-FROM gradle:jdk17 as back-build
-
-COPY ./back /src
+# Frontend build stage
+FROM node:18-alpine AS front-build
 
 WORKDIR /src
 
-RUN ./gradlew build
+COPY front/package*.json ./
 
-FROM alpine:3.19 as front
+RUN npm ci
+
+COPY front/ ./
+
+RUN npx @angular/cli build --optimization
+
+# Backend build stage
+FROM gradle:jdk17 AS back-build
+
+WORKDIR /src
+
+COPY back/gradle ./gradle
+COPY back/gradlew back/gradlew.bat back/settings.gradle back/build.gradle ./
+COPY back/src ./src
+
+RUN chmod +x ./gradlew && ./gradlew --no-daemon build -x test
+
+# Frontend runtime stage
+FROM alpine:3.19 AS front
 
 COPY --from=front-build /src/dist/microcrm/browser /app/front
 COPY misc/docker/Caddyfile /app/Caddyfile
 
 RUN apk add caddy
 
-WORKDIR /app
-
 EXPOSE 80
 EXPOSE 443
 
 CMD ["/usr/sbin/caddy", "run"]
 
-FROM alpine:3.19 as back
+# Backend runtime stage
+FROM eclipse-temurin:17-jre-alpine AS back
 
 COPY --from=back-build /src/build/libs/microcrm-0.0.1-SNAPSHOT.jar /app/back/microcrm-0.0.1-SNAPSHOT.jar
 
-RUN apk add openjdk21-jre-headless
-
-WORKDIR /app
-
-EXPOSE 4200
+EXPOSE 8080
 
 CMD ["java", "-jar", "/app/back/microcrm-0.0.1-SNAPSHOT.jar"]
 
-FROM alpine:3.19 as standalone
+# Frontend and backend combined runtime stage
+FROM alpine:3.19 AS standalone
 
 COPY --from=front / /
 COPY --from=back / /
@@ -52,6 +56,3 @@ RUN apk add supervisor
 WORKDIR /app
 
 CMD ["/usr/bin/supervisord", "-c", "/app/supervisor.ini"]
-
-
-
