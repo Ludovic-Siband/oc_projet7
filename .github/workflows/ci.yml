@@ -91,11 +91,11 @@ jobs:
       - name: Validate SonarQube configuration
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
-          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
         run: |
           if [[ -z "${SONAR_TOKEN}" || -z "${SONAR_PROJECT_KEY}" || -z "${SONAR_ORGANIZATION}" ]]; then
-            echo "Missing required Sonar configuration: SONAR_TOKEN secret and SONAR_PROJECT_KEY / SONAR_ORGANIZATION variables." >&2
+            echo "Missing required Sonar configuration: SONAR_TOKEN, SONAR_PROJECT_KEY and SONAR_ORGANIZATION secrets." >&2
             exit 1
           fi
 
@@ -137,8 +137,8 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           args: >
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.sources=back/src/main/java,front/src
             -Dsonar.tests=back/src/test/java,front/src
             -Dsonar.test.inclusions=**/*Test.java,**/*Tests.java,**/*.spec.ts
