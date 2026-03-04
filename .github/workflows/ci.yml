@@ -200,6 +200,7 @@ jobs:
           exit-code: "0"
 
       - name: Wait for backend
+        id: wait_backend
         run: |
           for i in {1..45}; do
             if curl -fsS http://localhost:8080/persons > /dev/null; then
@@ -211,6 +212,7 @@ jobs:
           exit 1
 
       - name: Wait for frontend
+        id: wait_frontend
         run: |
           for i in {1..45}; do
             if curl -fsS http://localhost:80 > /dev/null; then
@@ -222,7 +224,7 @@ jobs:
           exit 1
 
       - name: Dump container status and logs on failure
-        if: failure()
+        if: ${{ failure() && (steps.wait_backend.outcome == 'failure' || steps.wait_frontend.outcome == 'failure') }}
         run: |
           docker compose ps
           docker compose logs --no-color backend frontend
