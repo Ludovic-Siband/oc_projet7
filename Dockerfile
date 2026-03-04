@@ -33,7 +33,7 @@ RUN apk add caddy
 EXPOSE 80
 EXPOSE 443
 
-CMD ["/usr/sbin/caddy", "run"]
+CMD ["/usr/sbin/caddy", "run", "--config", "/app/Caddyfile", "--adapter", "caddyfile"]
 
 # Backend runtime stage
 FROM eclipse-temurin:17-jre-alpine AS back
