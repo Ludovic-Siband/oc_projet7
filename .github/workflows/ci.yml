@@ -173,6 +173,9 @@ jobs:
 
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@0.33.1
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db:1
         with:
           version: v0.69.2
           image-ref: orion-microcrm-back:local
@@ -184,6 +187,9 @@ jobs:
 
       - name: Scan frontend image with Trivy
         uses: aquasecurity/trivy-action@0.33.1
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+          TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db:1
         with:
           version: v0.69.2
           image-ref: orion-microcrm-front:local
