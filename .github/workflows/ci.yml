@@ -8,13 +8,12 @@ on:
     tags-ignore:
       - "v*"
 
-permissions:
-  contents: read
-
 jobs:
   backend:
     name: Build & Test Backend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: back
@@ -45,6 +44,8 @@ jobs:
   frontend:
     name: Build & Test Frontend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: front
@@ -84,6 +85,8 @@ jobs:
   sonar:
     name: SonarQube Cloud Analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs:
       - backend
       - frontend
@@ -131,7 +134,7 @@ jobs:
           path: .
 
       - name: Run Sonar scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -155,6 +158,8 @@ jobs:
   docker-validation:
     name: Validate Docker Compose Startup
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs:
       - backend
       - frontend
