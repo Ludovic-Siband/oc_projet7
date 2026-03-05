@@ -28,11 +28,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ github.sha }}
         run: |
-          SUCCESS_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs" \
-            -f head_sha="${TARGET_SHA}" \
-            -f status=completed \
-            -F per_page=100 \
-            --jq '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .conclusion == "success")] | length')"
+          API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TARGET_SHA}&status=completed&per_page=100"
+          SUCCESS_COUNT="$(
+            curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${API_URL}" \
+            | jq '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .conclusion == "success")] | length'
+          )"
 
           if [[ "${SUCCESS_COUNT}" -eq 0 ]]; then
             echo "No successful ci.yml run found for commit ${TARGET_SHA}. Release is blocked." >&2
