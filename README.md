@@ -4,6 +4,15 @@
 
 # MicroCRM (P7 - Développeur Full-Stack - Java et Angular - Mettez en œuvre l'intégration et le déploiement continu d'une application Full-Stack)
 
+## Sommaire
+
+- [Code source](#code-source)
+- [Exécution des tests](#exécution-des-tests)
+- [Images Docker](#images-docker)
+- [Orchestration Docker Compose](#orchestration-docker-compose)
+- [CI/CD (GitHub Actions)](#cicd-github-actions)
+- [Matrice des commandes clés](#matrice-des-commandes-clés)
+
 MicroCRM est une application de démonstration basique ayant pour être objectif de servir de socle pour le module "P7 - Développeur Full-Stack".
 
 L'application MicroCRM est une implémentation simplifiée d'un ["CRM" (Customer Relationship Management)](https://fr.wikipedia.org/wiki/Gestion_de_la_relation_client). Les fonctionnalités sont limitées à la création, édition et la visualisations des individus liés à des organisations.
@@ -153,3 +162,84 @@ docker run -it --rm -p 8080:8080 -p 80:80 -p 443:443 orion-microcrm-standalone:l
 ```
 
 L'application sera disponible sur https://localhost et l'API sur http://localhost:8080.
+
+### Orchestration Docker Compose
+
+L'application complète (front + back) peut être lancée avec Docker Compose:
+
+```shell
+docker compose up --build
+```
+
+Accès:
+
+- Frontend: http://localhost
+- Backend API: http://localhost:8080
+
+Arrêt:
+
+```shell
+docker compose down
+```
+
+## CI/CD (GitHub Actions)
+
+Les workflows sont définis dans:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/release.yml`
+
+### Workflow CI (`ci.yml`)
+
+Déclenchement:
+
+- `pull_request`
+- `push` sur les branches (hors tags `v*`)
+
+Étapes:
+
+1. Build + tests backend (Gradle)
+2. Build + tests frontend (npm + Karma/Chrome Headless)
+3. Analyse SonarQube Cloud + Quality Gate bloquant (obligatoire)
+4. Validation de sécurité des images Docker avec Trivy (informatif, non bloquant)
+5. Validation de démarrage via `docker compose up --build`
+
+Important:
+
+- `ci.yml` ne publie pas d'image sur GHCR.
+
+### Workflow Release (`release.yml`)
+
+Déclenchement:
+
+- Push de tag `vX.Y.Z` (ex: `v1.4.0`)
+
+Règles:
+
+1. Vérifie qu'un run `ci.yml` est en succès sur le SHA du tag (`github.sha`).
+2. Vérifie le format du tag (`vMAJOR.MINOR.PATCH`).
+3. Build des artefacts (JAR + build Angular)
+4. Build des images Docker (`back`, `front`)
+5. Push GHCR (uniquement ici)
+6. Création de la GitHub Release et attachement des artefacts
+7. Rollback automatique en cas d'échec: suppression de la release (si créée) puis suppression du tag
+
+### Configuration GitHub requise
+
+Secrets:
+
+- `SONAR_TOKEN` (pour SonarQube Cloud)
+- `SONAR_PROJECT_KEY`
+- `SONAR_ORGANIZATION`
+
+## Matrice des commandes clés
+
+| Commande | Objectif | Définie dans | Exécutée quand |
+| --- | --- | --- | --- |
+| `./gradlew --no-daemon clean build` | Build + tests backend | `ci.yml` | CI |
+| `npm run build` | Build frontend | `ci.yml`, `release.yml` | CI, Release |
+| `npm test -- --watch=false --browsers=ChromeHeadlessNoSandbox --code-coverage` | Tests frontend + coverage | `ci.yml` | CI |
+| `docker compose up --build -d` | Vérifier démarrage app complète | `ci.yml` | CI |
+| `docker build --target back/front ...` | Construire images Docker | `release.yml` | Release |
+| Trivy (`aquasecurity/trivy-action`) | Scanner vulnérabilités images | `ci.yml` | CI |
+| `docker push ghcr.io/...` | Publier images conteneurisées | `release.yml` | Release |
