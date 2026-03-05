@@ -28,11 +28,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ github.sha }}
         run: |
-          SUCCESS_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" \
+          SUCCESS_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs" \
             -f head_sha="${TARGET_SHA}" \
             -f status=completed \
             -F per_page=100 \
-            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+            --jq '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml" and .conclusion == "success")] | length')"
 
           if [[ "${SUCCESS_COUNT}" -eq 0 ]]; then
             echo "No successful ci.yml run found for commit ${TARGET_SHA}. Release is blocked." >&2
@@ -132,3 +132,17 @@ jobs:
           files: |
             ${{ steps.assets.outputs.back_asset }}
             ${{ steps.assets.outputs.front_asset }}
+
+      - name: Roll back tag/release on failure
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "Release failed. Rolling back tag ${TAG}."
+
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release delete "${TAG}" --yes || true
+          fi
+
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" || true
