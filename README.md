@@ -10,6 +10,7 @@
 - [Exécution des tests](#exécution-des-tests)
 - [Images Docker](#images-docker)
 - [Orchestration Docker Compose](#orchestration-docker-compose)
+- [Observabilité locale (ELK)](#observabilité-locale-elk)
 - [CI/CD (GitHub Actions)](#cicd-github-actions)
 - [Matrice des commandes clés](#matrice-des-commandes-clés)
 
@@ -173,7 +174,7 @@ docker compose up --build
 
 Accès:
 
-- Frontend: http://localhost
+- Frontend: https://localhost
 - Backend API: http://localhost:8080
 
 Arrêt:
@@ -181,6 +182,71 @@ Arrêt:
 ```shell
 docker compose down
 ```
+
+### Observabilité locale (ELK)
+
+La partie 2 ajoute une stack ELK locale distincte du compose applicatif standard.
+L'implémentation reste volontairement simple:
+
+- un service optionnel `monitoring` basé sur l'image `standalone` est ajouté dans `docker-compose.yml`;
+- ce service n'est démarré que via le profil Compose `monitoring`;
+- le backend Spring Boot émet ses logs console au format JSON `logstash`;
+- `Filebeat` collecte les logs Docker du service `monitoring` et les envoie à Logstash;
+- la sécurité Elastic est désactivée explicitement pour simplifier l'usage local;
+- un volume Elasticsearch est conservé pour garder les index entre deux redémarrages;
+- `ci.yml` et `release.yml` ne sont pas affectés, car ils continuent d'utiliser `docker compose up --build -d` sans profil.
+
+#### Prérequis
+
+- Docker Compose
+- Environ 4 Go de RAM disponibles
+
+#### Démarrage
+
+1. Démarrer la stack ELK:
+
+   ```shell
+   docker compose -f docker-compose-elk.yml up -d
+   ```
+
+2. Démarrer le runtime `standalone` utilisé pour alimenter ELK:
+
+   ```shell
+   docker compose --profile monitoring up --build -d monitoring
+   ```
+
+#### Accès
+
+- Frontend du runtime `standalone`: https://localhost:8443
+- Backend du runtime `standalone`: http://localhost:8080
+- Elasticsearch: http://localhost:9200
+- Kibana: http://localhost:5601
+
+Note:
+
+- le backend du runtime `standalone` est publié sur `8080`, comme le backend standard, car le frontend Angular appelle l'API via l'URL fixe `http://localhost:8080`;
+- ce choix évite toute modification du code applicatif `front/` et `back/`, au prix d'une exclusivité d'usage entre le mode standard et le mode `monitoring`;
+- le mode standard (`backend` + `frontend`) et le mode `monitoring` ne doivent pas être lancés en même temps, car ils publient tous les deux le port `8080` pour l'API.
+
+Kibana n'est pas préconfiguré automatiquement.
+Après démarrage, il faut créer manuellement:
+
+- un data view `microcrm-logs-*`;
+- au moins une visualisation simple sur le volume de logs, les niveaux, ou les erreurs.
+
+#### Arrêt
+
+```shell
+docker compose --profile monitoring down
+docker compose -f docker-compose-elk.yml down
+```
+
+#### Collecte des logs
+
+- `monitoring` exécute le runtime `standalone` déjà prévu dans le `Dockerfile`, piloté par [`supervisor.ini`](./misc/docker/supervisor.ini).
+- Spring Boot produit ses logs backend en JSON sur la sortie standard.
+- `Filebeat` lit les fichiers de logs Docker sur l'hôte et filtre le conteneur `monitoring`.
+- Logstash écoute sur `5044`, parse les logs JSON du backend quand ils sont présents, puis transfère les événements vers Elasticsearch.
 
 ## CI/CD (GitHub Actions)
 
@@ -240,6 +306,9 @@ Secrets:
 | `npm run build` | Build frontend | `ci.yml`, `release.yml` | CI, Release |
 | `npm test -- --watch=false --browsers=ChromeHeadlessNoSandbox --code-coverage` | Tests frontend + coverage | `ci.yml` | CI |
 | `docker compose up --build -d` | Vérifier démarrage app complète | `ci.yml` | CI |
+| `docker compose up --build -d` | Démarrer l'application locale standard | `docker-compose.yml` | Local |
+| `docker compose -f docker-compose-elk.yml up -d` | Démarrer Elasticsearch, Logstash et Kibana | `docker-compose-elk.yml` | Local |
+| `docker compose --profile monitoring up --build -d monitoring` | Démarrer le runtime standalone pour ELK | `docker-compose.yml` | Local |
 | `docker build --target back/front ...` | Construire images Docker | `release.yml` | Release |
 | Trivy (`aquasecurity/trivy-action`) | Scanner vulnérabilités images | `ci.yml` | CI |
 | `docker push ghcr.io/...` | Publier images conteneurisées | `release.yml` | Release |

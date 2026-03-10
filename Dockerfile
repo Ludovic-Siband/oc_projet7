@@ -45,10 +45,11 @@ EXPOSE 8080
 CMD ["java", "-jar", "/app/back/microcrm-0.0.1-SNAPSHOT.jar"]
 
 # Frontend and backend combined runtime stage
-FROM alpine:3.19 AS standalone
+# Reuse the frontend runtime (Caddy + built Angular app), then add the backend runtime.
+FROM front AS standalone
 
-COPY --from=front / /
-COPY --from=back / /
+COPY --from=back /app/back /app/back
+COPY --from=back /opt/java/openjdk /opt/java/openjdk
 COPY misc/docker/supervisor.ini /app/supervisor.ini
 
 RUN apk add supervisor

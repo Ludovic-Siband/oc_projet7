@@ -20,6 +20,21 @@ services:
       - backend
     ports:
       - "80:80"
+      - "443:443"
+    networks:
+      - microcrm
+
+  monitoring:
+    profiles:
+      - monitoring
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: standalone
+    image: orion-microcrm-standalone:local
+    ports:
+      - "8443:443"
+      - "8080:8080"
     networks:
       - microcrm
 
